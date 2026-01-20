@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, ScrollView, RefreshControl, ActivityIndicator, Button } from 'react-native';
-import axios from 'axios';
+import { pullAllInformation } from './src/services/dataService';
+import { saveData, getData, isFresh } from './src/utils/storage';
+import DataCard from './src/components/DataCard';
 
 export default function App() {
   const [data, setData] = useState([]);
@@ -9,15 +11,34 @@ export default function App() {
   const [error, setError] = useState(null);
 
   // Function to pull/fetch information from API
-  const pullInformation = async () => {
+  const pullInformation = async (forceRefresh = false) => {
     setLoading(true);
     setError(null);
     
     try {
-      // Example API endpoint - replace with your actual backend
-      const response = await axios.get('https://jsonplaceholder.typicode.com/posts');
-      setData(response.data.slice(0, 10)); // Get first 10 items
-      console.log('Successfully pulled information from server');
+      // Check if we have fresh cached data (unless force refresh)
+      if (!forceRefresh && isFresh('allData', 5)) {
+        const cached = getData('allData');
+        if (cached) {
+          setData(cached.data.slice(0, 10));
+          console.log('Loaded data from cache');
+          setLoading(false);
+          setRefreshing(false);
+          return;
+        }
+      }
+
+      // Pull fresh data from server
+      const result = await pullAllInformation();
+      
+      if (result.success) {
+        const fetchedData = result.data.slice(0, 10); // Get first 10 items
+        setData(fetchedData);
+        saveData('allData', result.data); // Cache the data
+        console.log('Successfully pulled information from server');
+      } else {
+        setError('Failed to pull information: ' + result.error);
+      }
     } catch (err) {
       setError('Failed to pull information: ' + err.message);
       console.error('Error pulling information:', err);
@@ -35,7 +56,7 @@ export default function App() {
   // Handle pull-to-refresh
   const onRefresh = () => {
     setRefreshing(true);
-    pullInformation();
+    pullInformation(true); // Force refresh
   };
 
   return (
@@ -64,10 +85,12 @@ export default function App() {
         }
       >
         {data.map((item) => (
-          <View key={item.id} style={styles.card}>
-            <Text style={styles.cardTitle}>{item.title}</Text>
-            <Text style={styles.cardBody}>{item.body}</Text>
-          </View>
+          <DataCard
+            key={item.id}
+            title={item.title}
+            body={item.body}
+            onPress={() => console.log('Tapped item:', item.id)}
+          />
         ))}
       </ScrollView>
     </View>
@@ -105,22 +128,5 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
     marginTop: 20,
-  },
-  card: {
-    backgroundColor: '#f9f9f9',
-    padding: 15,
-    marginBottom: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 5,
-  },
-  cardBody: {
-    fontSize: 14,
-    color: '#333',
   },
 });
