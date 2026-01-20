@@ -66,7 +66,7 @@ export default function App() {
       
       <Button 
         title="Pull Latest Information" 
-        onPress={pullInformation}
+        onPress={() => pullInformation(false)}
         disabled={loading}
       />
 

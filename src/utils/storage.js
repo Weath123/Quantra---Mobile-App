@@ -55,7 +55,7 @@ export const isFresh = (key, minutes = 5) => {
  * Clear all cached data
  */
 export const clearCache = () => {
-  cache = {};
+  Object.keys(cache).forEach(key => delete cache[key]);
 };
 
 export default {
